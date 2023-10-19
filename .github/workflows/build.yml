@@ -1,0 +1,29 @@
+name: Magisk Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test on ${{ matrix.api }}
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [23, 26, 28, 29, 34]
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python 3
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: AVD test
+        run: |
+          brew install coreutils bash
+          scripts/avd_test.sh ${{ matrix.api }}
