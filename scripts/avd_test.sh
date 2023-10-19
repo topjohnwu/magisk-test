@@ -5,7 +5,7 @@ avd="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
 sdk="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
 emu_args='-no-window -gpu swiftshader_indirect -read-only -no-snapshot -no-audio -no-boot-anim -show-kernel'
 boot_timeout=600
-boot_delay=30
+boot_delay=60
 emu_pid=
 
 # Should be either 'google_apis' or 'default'
@@ -111,9 +111,9 @@ test_emu() {
 
   # Install the Magisk app
   adb install -r -g out/app-${variant}.apk
-  sleep $boot_delay
 
   # Use the app to run setup and reboot
+  sleep $boot_delay
   adb shell echo "'content call --uri content://com.topjohnwu.magisk.provider --method setup'" \| /system/xbin/su \
     | tee /dev/fd/2 | grep -q 'result=true'
   adb reboot
