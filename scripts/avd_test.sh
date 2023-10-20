@@ -5,7 +5,6 @@ avd="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
 sdk="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
 emu_args='-no-window -gpu swiftshader_indirect -read-only -no-snapshot -no-audio -no-boot-anim -show-kernel'
 boot_timeout=600
-boot_delay=120
 emu_pid=
 
 # Should be either 'google_apis' or 'default'
@@ -98,6 +97,19 @@ wait_emu() {
   [ $which_pid -eq $wait_pid ]
 }
 
+run_content_cmd() {
+  while true; do
+    local out=$(adb shell echo "'content call --uri content://com.topjohnwu.magisk.provider --method $1'" \| /system/xbin/su | tee /dev/fd/2)
+    if ! grep -q 'Bundle\[' <<< "$out"; then
+      # The call failed, wait a while and retry later
+      sleep 30
+    else
+      grep -q 'result=true' <<< "$out"
+      return $?
+    fi
+  done
+}
+
 test_emu() {
   local variant=$1
 
@@ -113,16 +125,12 @@ test_emu() {
   adb install -r -g out/app-${variant}.apk
 
   # Use the app to run setup and reboot
-  sleep $boot_delay
-  adb shell echo "'content call --uri content://com.topjohnwu.magisk.provider --method setup'" \| /system/xbin/su \
-    | tee /dev/fd/2 | grep -q 'result=true'
+  run_content_cmd setup
   adb reboot
   wait_emu wait_for_boot
 
   # Run app tests
-  sleep $boot_delay
-  adb shell echo "'content call --uri content://com.topjohnwu.magisk.provider --method test'" \| /system/xbin/su \
-    | tee /dev/fd/2 | grep -q 'result=true'
+  run_content_cmd test
   adb shell echo "'su -c id'" \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'
 }
 
