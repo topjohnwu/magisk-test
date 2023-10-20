@@ -5,7 +5,7 @@ avd="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
 sdk="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
 emu_args='-no-window -gpu swiftshader_indirect -read-only -no-snapshot -no-audio -no-boot-anim -show-kernel'
 boot_timeout=600
-boot_delay=120
+boot_delay=10
 emu_pid=
 
 # Should be either 'google_apis' or 'default'
@@ -114,7 +114,7 @@ test_emu() {
 
   # Use the app to run setup and reboot
   sleep $boot_delay
-  adb shell pm dump com.topjohnwu.magisk
+  adb shell pm dump com.topjohnwu.magisk >/dev/null
   adb shell echo "'content call --uri content://com.topjohnwu.magisk.provider --method setup'" \| /system/xbin/su \
     | tee /dev/fd/2 | grep -q 'result=true'
   adb reboot
@@ -122,7 +122,7 @@ test_emu() {
 
   # Run app tests
   sleep $boot_delay
-  adb shell pm dump com.topjohnwu.magisk
+  adb shell pm dump com.topjohnwu.magisk >/dev/null
   adb shell echo "'content call --uri content://com.topjohnwu.magisk.provider --method test'" \| /system/xbin/su \
     | tee /dev/fd/2 | grep -q 'result=true'
   adb shell echo "'su -c id'" \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'
