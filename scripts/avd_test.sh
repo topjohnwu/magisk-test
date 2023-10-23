@@ -131,7 +131,7 @@ test_emu() {
 
   # Run app tests
   run_content_cmd test
-  sleep 10
+  sleep 30
   adb shell echo "'su -c id'" \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'
 }
 
