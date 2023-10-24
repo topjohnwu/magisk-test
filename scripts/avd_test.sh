@@ -130,16 +130,8 @@ test_emu() {
   wait_emu wait_for_boot
 
   # Run app tests
-  adb logcat -c
-  adb logcat >> cmd.log &
-  local log_pid=$!
   run_content_cmd test
-  if adb shell echo "'su -c id'" \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'; then
-    kill $log_pid
-  else
-    kill $log_pid
-    false
-  fi
+  adb shell echo "'su -c id'" \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'
 }
 
 
