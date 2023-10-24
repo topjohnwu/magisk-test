@@ -92,7 +92,7 @@ wait_emu() {
   timeout $boot_timeout bash -c $wait_fn &
   local wait_pid=$!
 
-  # Handle the case when emulator dies earlier than wait
+  # Handle the case when emulator dies earlier than timeout
   wait -p which_pid -n $emu_pid $wait_pid
   [ $which_pid -eq $wait_pid ]
 }
@@ -158,10 +158,10 @@ run_test() {
   test_emu debug
 
   # Re-patch and test release build
-  # ./build.py -r avd_patch -s "$ramdisk"
-  # kill -INT $emu_pid
-  # wait $emu_pid
-  # test_emu release
+  ./build.py -r avd_patch -s "$ramdisk"
+  kill -INT $emu_pid
+  wait $emu_pid
+  test_emu release
 
   # Cleanup
   kill -INT $emu_pid
