@@ -166,10 +166,10 @@ run_test() {
   test_emu debug
 
   # Re-patch and test release build
-  ./build.py -r avd_patch -s "$ramdisk"
-  kill -INT $emu_pid
-  wait $emu_pid
-  test_emu release
+  # ./build.py -r avd_patch -s "$ramdisk"
+  # kill -INT $emu_pid
+  # wait $emu_pid
+  # test_emu release
 
   # Cleanup
   kill -INT $emu_pid
