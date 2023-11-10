@@ -62,6 +62,8 @@ if shutil.which("sccache") is not None:
     os.environ["RUSTC_WRAPPER"] = "sccache"
     os.environ["NDK_CCACHE"] = "sccache"
     os.environ["CARGO_INCREMENTAL"] = "0"
+if shutil.which("ccache") is not None:
+    os.environ["NDK_CCACHE"] = "ccache"
 
 cpu_count = multiprocessing.cpu_count()
 os_name = platform.system().lower()
@@ -244,7 +246,7 @@ def run_ndk_build(flags):
         error("Build binary failed!")
     os.chdir("..")
     for arch in archs:
-        for tgt in support_targets + ["libinit-ld.so", "libzygisk-ld.so"]:
+        for tgt in support_targets + ["libinit-ld.so"]:
             source = op.join("native", "libs", arch, tgt)
             target = op.join("native", "out", arch, tgt)
             mv(source, target)
@@ -340,9 +342,6 @@ def dump_bin_header(args):
         preload = op.join("native", "out", arch, "libinit-ld.so")
         with open(preload, "rb") as src:
             text = binary_dump(src, "init_ld_xz")
-        preload = op.join("native", "out", arch, "libzygisk-ld.so")
-        with open(preload, "rb") as src:
-            text += binary_dump(src, "zygisk_ld", compressor=lambda x: x)
         write_if_diff(op.join(native_gen_path, f"{arch}_binaries.h"), text)
 
 
@@ -393,8 +392,9 @@ def build_binary(args):
     flag = ""
     clean = False
 
-    if "magisk" in args.target or "magiskinit" in args.target:
-        flag += " B_PRELOAD=1"
+    if "magisk" in args.target:
+        flag += " B_MAGISK=1"
+        clean = True
 
     if "magiskpolicy" in args.target:
         flag += " B_POLICY=1"
@@ -415,13 +415,9 @@ def build_binary(args):
     if flag:
         run_ndk_build(flag)
 
-    # magiskinit and magisk embeds preload.so
+    # magiskinit embeds preload.so
 
     flag = ""
-
-    if "magisk" in args.target:
-        flag += " B_MAGISK=1"
-        clean = True
 
     if "magiskinit" in args.target:
         flag += " B_INIT=1"

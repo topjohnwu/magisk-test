@@ -4,6 +4,7 @@ emu="$ANDROID_SDK_ROOT/emulator/emulator"
 avd="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
 sdk="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
 emu_args='-no-window -gpu swiftshader_indirect -read-only -no-snapshot -no-audio -no-boot-anim -show-kernel'
+lsposed_url='https://github.com/LSPosed/LSPosed/releases/download/v1.9.2/LSPosed-v1.9.2-7024-zygisk-release.zip'
 boot_timeout=600
 emu_pid=
 
@@ -112,6 +113,7 @@ run_content_cmd() {
 
 test_emu() {
   local variant=$1
+  local api=$2
 
   print_title "* Testing $pkg ($variant)"
 
@@ -126,12 +128,27 @@ test_emu() {
 
   # Use the app to run setup and reboot
   run_content_cmd setup
+
+  # Install LSPosed
+  if [ $api -ge 27 ]; then
+    adb push out/lsposed.zip /data/local/tmp/lsposed.zip
+    adb shell echo 'magisk --install-module /data/local/tmp/lsposed.zip' \| /system/xbin/su
+  fi
+
   adb reboot
   wait_emu wait_for_boot
 
   # Run app tests
   run_content_cmd test
-  adb shell echo "'su -c id'" \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'
+  adb shell echo 'su -c id' \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'
+
+  # Try to launch LSPosed
+  if [ $api -ge 27 ]; then
+    adb shell am start -c org.lsposed.manager.LAUNCH_MANAGER com.android.shell/.BugreportWarningActivity
+    sleep 10
+    adb shell uiautomator dump
+    adb shell grep -q org.lsposed.manager /sdcard/window_dump.xml
+  fi
 }
 
 
@@ -155,13 +172,13 @@ run_test() {
   ./build.py avd_patch -s "$ramdisk"
   kill -INT $emu_pid
   wait $emu_pid
-  test_emu debug
+  test_emu debug $api
 
   # Re-patch and test release build
   ./build.py -r avd_patch -s "$ramdisk"
   kill -INT $emu_pid
   wait $emu_pid
-  test_emu release
+  test_emu release $api
 
   # Cleanup
   kill -INT $emu_pid
@@ -187,6 +204,7 @@ esac
 
 yes | "$sdk" --licenses
 "$sdk" --channel=3 --update
+curl -L $lsposed_url -o out/lsposed.zip
 
 if [ -n "$1" ]; then
   run_test $1
