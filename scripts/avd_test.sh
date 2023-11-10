@@ -145,7 +145,7 @@ test_emu() {
   # Try to launch LSPosed
   if [ $api -ge 27 ]; then
     adb shell am start -c org.lsposed.manager.LAUNCH_MANAGER com.android.shell/.BugreportWarningActivity
-    sleep 30
+    sleep 120
     adb shell uiautomator dump
     adb shell grep -q org.lsposed.manager /sdcard/window_dump.xml
   fi
