@@ -8,9 +8,6 @@ lsposed_url='https://github.com/LSPosed/LSPosed/releases/download/v1.9.2/LSPosed
 boot_timeout=600
 emu_pid=
 
-# Should be either 'google_apis' or 'default'
-type='default'
-
 # We test these API levels for the following reason
 
 # API 23: legacy rootfs w/o Treble
@@ -71,6 +68,11 @@ wait_for_boot() {
 }
 
 set_api_env() {
+  local type='default'
+  if [ $1 -ge 30 ]; then
+    # Use the lightweight ADT images if possible
+    type='aosp_atd'
+  fi
   pkg="system-images;android-$1;$type;$arch"
   local img_dir="$ANDROID_SDK_ROOT/system-images/android-$1/$type/$arch"
   ramdisk="$img_dir/ramdisk.img"
