@@ -3,7 +3,7 @@
 emu="$ANDROID_SDK_ROOT/emulator/emulator"
 avd="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
 sdk="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
-emu_args='-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -read-only -no-snapshot -show-kernel -cores 4 -memory 8192'
+emu_args='-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -read-only -no-snapshot -show-kernel -memory 8192'
 lsposed_url='https://github.com/LSPosed/LSPosed/releases/download/v1.9.2/LSPosed-v1.9.2-7024-zygisk-release.zip'
 boot_timeout=600
 emu_pid=
@@ -17,6 +17,8 @@ emu_pid=
 # API 34: latest Android
 
 api_list='23 26 28 29 34'
+atd_min_api=30
+atd_max_api=33
 
 print_title() {
   echo -e "\n\033[44;39m${1}\033[0m\n"
@@ -69,7 +71,7 @@ wait_for_boot() {
 
 set_api_env() {
   local type='default'
-  if [ $1 -ge 30 ]; then
+  if [ $1 -ge $atd_min_api -a $1 -le $atd_max_api ]; then
     # Use the lightweight ADT images if possible
     type='aosp_atd'
   fi
@@ -86,6 +88,41 @@ restore_avd() {
   if [ -f "${features}.bak" ]; then
     cp "${features}.bak" "$features"
   fi
+}
+
+disable_pkgs() {
+  local packages='
+    pm disable com.android.music;
+    pm disable com.android.settings;
+    pm disable com.android.dreams.phototable;
+    pm disable com.android.carrierconfig;
+    pm disable com.android.inputmethod.latin;
+    pm disable com.android.dreams.basic;
+    pm disable com.android.dialer;
+    pm disable com.android.musicfx;
+    pm disable com.android.documentsui;
+    pm disable com.android.wallpaper.livepicker;
+    pm disable com.android.captiveportallogin;
+    pm disable com.android.calendar;
+    pm disable com.android.managedprovisioning;
+    pm disable com.android.emergency;
+    pm disable com.android.carrierdefaultapp;
+    pm disable com.android.contacts;
+    pm disable com.android.systemui;
+    pm disable com.android.wallpapercropper;
+    pm disable com.android.wallpaperpicker;
+    pm disable com.android.gallery3d;
+    pm disable com.android.launcher3;
+    pm disable com.android.storagemanager;
+    pm disable com.android.quicksearchbox;
+    pm disable com.android.deskclock;
+    pm disable com.android.wallpaperbackup;
+    pm disable com.android.soundpicker;
+    pm disable com.android.camera2;
+    pm disable com.android.messaging;
+    pm disable com.android.stk;
+  '
+  adb shell "echo '$packages'" \| /system/xbin/su
 }
 
 wait_emu() {
@@ -137,6 +174,11 @@ test_emu() {
     adb shell echo 'magisk --install-module /data/local/tmp/lsposed.zip' \| /system/xbin/su
   fi
 
+  # Trim the emulator image if ATD is not available
+  if [ $api -gt $atd_max_api ]; then
+    disable_pkgs
+  fi
+
   adb reboot
   wait_emu wait_for_boot
 
@@ -167,7 +209,7 @@ run_test() {
   set_api_env $api
 
   # Setup emulator
-  "$sdk" $pkg
+  "$sdk" --channel=3 $pkg
   echo no | "$avd" create avd -f -n test -k $pkg
 
   # Launch stock emulator
@@ -211,7 +253,7 @@ case $(uname -m) in
     ;;
 esac
 
-yes | "$sdk" --licenses
+yes | "$sdk" --licenses > /dev/null
 "$sdk" --channel=3 --update
 curl -L $lsposed_url -o out/lsposed.zip
 
