@@ -14,11 +14,14 @@ emu_pid=
 # API 26: legacy rootfs with Treble
 # API 28: legacy system-as-root
 # API 29: 2 Stage Init
+# API 33: latest Android with ATD image
 # API 34: latest Android
 
-api_list='23 26 28 29 34'
+api_list='23 26 28 29 33 34'
+
 atd_min_api=30
 atd_max_api=33
+lsposed_min_api=27
 
 print_title() {
   echo -e "\n\033[44;39m${1}\033[0m\n"
@@ -72,7 +75,7 @@ wait_for_boot() {
 set_api_env() {
   local type='default'
   if [ $1 -ge $atd_min_api -a $1 -le $atd_max_api ]; then
-    # Use the lightweight ADT images if possible
+    # Use the lightweight ATD images if possible
     type='aosp_atd'
   fi
   pkg="system-images;android-$1;$type;$arch"
@@ -88,41 +91,6 @@ restore_avd() {
   if [ -f "${features}.bak" ]; then
     cp "${features}.bak" "$features"
   fi
-}
-
-disable_pkgs() {
-  local packages='
-    pm disable com.android.music;
-    pm disable com.android.settings;
-    pm disable com.android.dreams.phototable;
-    pm disable com.android.carrierconfig;
-    pm disable com.android.inputmethod.latin;
-    pm disable com.android.dreams.basic;
-    pm disable com.android.dialer;
-    pm disable com.android.musicfx;
-    pm disable com.android.documentsui;
-    pm disable com.android.wallpaper.livepicker;
-    pm disable com.android.captiveportallogin;
-    pm disable com.android.calendar;
-    pm disable com.android.managedprovisioning;
-    pm disable com.android.emergency;
-    pm disable com.android.carrierdefaultapp;
-    pm disable com.android.contacts;
-    pm disable com.android.systemui;
-    pm disable com.android.wallpapercropper;
-    pm disable com.android.wallpaperpicker;
-    pm disable com.android.gallery3d;
-    pm disable com.android.launcher3;
-    pm disable com.android.storagemanager;
-    pm disable com.android.quicksearchbox;
-    pm disable com.android.deskclock;
-    pm disable com.android.wallpaperbackup;
-    pm disable com.android.soundpicker;
-    pm disable com.android.camera2;
-    pm disable com.android.messaging;
-    pm disable com.android.stk;
-  '
-  adb shell "echo '$packages'" \| /system/xbin/su
 }
 
 wait_emu() {
@@ -169,7 +137,7 @@ test_emu() {
   run_content_cmd setup
 
   # Install LSPosed
-  if [ $api -ge 27 ]; then
+  if [ $api -ge $lsposed_min_api -a $api -le $atd_max_api ]; then
     adb push out/lsposed.zip /data/local/tmp/lsposed.zip
     adb shell echo 'magisk --install-module /data/local/tmp/lsposed.zip' \| /system/xbin/su
   fi
@@ -187,18 +155,11 @@ test_emu() {
   adb shell echo 'su -c id' \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'
 
   # Try to launch LSPosed
-  if [ $api -ge 27 ]; then
-    while true; do
-      adb shell am start -c org.lsposed.manager.LAUNCH_MANAGER com.android.shell/.BugreportWarningActivity
-      sleep 10
-      adb shell uiautomator dump
-      if adb shell grep -q com.android.shell /sdcard/window_dump.xml; then
-        adb shell grep -q org.lsposed.manager /sdcard/window_dump.xml
-        break
-      else
-        sleep 5
-      fi
-    done
+  if [ $api -ge $lsposed_min_api -a $api -le $atd_max_api ]; then
+    adb shell am start -c org.lsposed.manager.LAUNCH_MANAGER com.android.shell/.BugreportWarningActivity
+    sleep 10
+    adb shell uiautomator dump
+    adb shell grep -q org.lsposed.manager /sdcard/window_dump.xml
   fi
 }
 
