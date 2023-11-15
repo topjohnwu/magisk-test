@@ -142,11 +142,6 @@ test_emu() {
     adb shell echo 'magisk --install-module /data/local/tmp/lsposed.zip' \| /system/xbin/su
   fi
 
-  # Trim the emulator image if ATD is not available
-  if [ $api -gt $atd_max_api ]; then
-    disable_pkgs
-  fi
-
   adb reboot
   wait_emu wait_for_boot
 
