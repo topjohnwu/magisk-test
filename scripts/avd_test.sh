@@ -14,13 +14,12 @@ emu_pid=
 # API 26: legacy rootfs with Treble
 # API 28: legacy system-as-root
 # API 29: 2 Stage Init
-# API 33: latest Android with ATD image
 # API 34: latest Android
 
-api_list='23 26 28 29 33 34'
+api_list='23 26 28 29 34'
 
 atd_min_api=30
-atd_max_api=33
+atd_max_api=34
 lsposed_min_api=27
 
 print_title() {
@@ -151,10 +150,13 @@ test_emu() {
 
   # Try to launch LSPosed
   if [ $api -ge $lsposed_min_api -a $api -le $atd_max_api ]; then
+    adb shell rm -f /data/local/tmp/window_dump.xml
     adb shell am start -c org.lsposed.manager.LAUNCH_MANAGER com.android.shell/.BugreportWarningActivity
-    sleep 10
-    adb shell uiautomator dump
-    adb shell grep -q org.lsposed.manager /sdcard/window_dump.xml
+    while adb shell '[ ! -f /data/local/tmp/window_dump.xml ]'; do
+      sleep 10
+      adb shell uiautomator dump /data/local/tmp/window_dump.xml
+    done
+    adb shell grep -q org.lsposed.manager /data/local/tmp/window_dump.xml
   fi
 }
 
