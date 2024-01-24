@@ -169,7 +169,7 @@ run_test() {
   set_api_env $api
 
   # Setup emulator
-  "$sdk" --channel=3 $pkg
+  "$sdk" $pkg
   echo no | "$avd" create avd -f -n test -k $pkg
 
   # Launch stock emulator
@@ -215,7 +215,7 @@ esac
 
 yes | "$sdk" --licenses > /dev/null
 curl -L $lsposed_url -o out/lsposed.zip
-"$sdk" --channel=3 tools platform-tools emulator
+"$sdk" tools platform-tools emulator
 
 if [ -n "$1" ]; then
   run_test $1
