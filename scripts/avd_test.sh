@@ -144,15 +144,6 @@ test_emu() {
   # Install the Magisk app
   adb install -r -g out/app-${variant}.apk
 
-  # Make sure packages.xml is updated
-  while true; do
-    if adb shell echo 'grep -q com.topjohnwu.magisk /data/system/packages.xml' \| /system/xbin/su; then
-      break
-    fi
-    # Wait a while
-    sleep 5
-  done
-
   # Use the app to run setup and reboot
   run_content_cmd setup
 
