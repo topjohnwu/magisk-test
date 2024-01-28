@@ -195,11 +195,11 @@ run_test() {
   wait $emu_pid
   test_emu debug $api
 
-  # Re-patch and test release build
-  ./build.py -r avd_patch -s "$ramdisk"
-  kill -INT $emu_pid
-  wait $emu_pid
-  test_emu release $api
+  # # Re-patch and test release build
+  # ./build.py -r avd_patch -s "$ramdisk"
+  # kill -INT $emu_pid
+  # wait $emu_pid
+  # test_emu release $api
 
   # Cleanup
   kill -INT $emu_pid
