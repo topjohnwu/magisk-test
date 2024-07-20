@@ -62,20 +62,28 @@ download_cf() {
 test_cf() {
   local variant=$1
 
-  print_title "* Testing $variant builds"
   run_cvd_bin stop_cvd || true
+
+  print_title "* Testing $variant builds"
   timeout $boot_timeout bash -c "run_cvd_bin launch_cvd $cvd_args $magisk_args -resume=false"
+  adb wait-for-device
   test_setup $variant
+
   adb reboot
   sleep 5
   run_cvd_bin stop_cvd || true
+
   timeout $boot_timeout bash -c "run_cvd_bin launch_cvd $cvd_args $magisk_args"
+  adb wait-for-device
   test_app
 }
 
 run_test() {
   # Launch stock cuttlefish
   run_cvd_bin launch_cvd $cvd_args -resume=false
+  adb wait-for-device
+  adb devices
+  adb shell getprop ro.product.cpu.abi
 
   # Patch and test debug build
   ./build.py avd_patch -s "$CF_HOME/init_boot.img" magisk_patched.img
