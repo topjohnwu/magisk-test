@@ -2,33 +2,19 @@
 
 emu="$ANDROID_SDK_ROOT/emulator/emulator"
 avd="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager"
-sdk="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
 emu_args_base='-no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -read-only -no-snapshot'
 lsposed_url='https://github.com/LSPosed/LSPosed/releases/download/v1.9.2/LSPosed-v1.9.2-7024-zygisk-release.zip'
-boot_timeout=600
 emu_pid=
-
-export PATH="$PATH:$ANDROID_SDK_ROOT/platform-tools"
 
 atd_min_api=30
 atd_max_api=34
 lsposed_min_api=27
 huge_ram_min_api=26
 
-print_title() {
-  echo -e "\n\033[44;39m${1}\033[0m\n"
-}
-
-print_error() {
-  echo -e "\n\033[41;39m${1}\033[0m\n"
-}
-
 cleanup() {
   print_error "! An error occurred when testing $pkg"
 
-  find $ANDROID_SDK_ROOT/system-images -name 'ramdisk.img' -exec cp -v {}.bak {} \; 2>/dev/null
-  find $ANDROID_SDK_ROOT/system-images -name 'advancedFeatures.ini' -exec cp -v {}.bak {} \; 2>/dev/null
-
+  rm -f magisk_patched.img
   "$avd" delete avd -n test
   pkill -INT -P $$
   wait
@@ -62,12 +48,6 @@ wait_for_boot() {
   done
 }
 
-restore_backup() {
-  if [ -f "${1}.bak" ]; then
-    cp "${1}.bak" "$1"
-  fi
-}
-
 wait_emu() {
   local wait_fn=$1
   local which_pid
@@ -78,19 +58,6 @@ wait_emu() {
   # Handle the case when emulator dies earlier than timeout
   wait -p which_pid -n $emu_pid $wait_pid
   [ $which_pid -eq $wait_pid ]
-}
-
-run_content_cmd() {
-  while true; do
-    local out=$(adb shell echo "'content call --uri content://com.topjohnwu.magisk.provider --method $1'" \| /system/xbin/su | tee /dev/fd/2)
-    if ! grep -q 'Bundle\[' <<< "$out"; then
-      # The call failed, wait a while and retry later
-      sleep 30
-    else
-      grep -q 'result=true' <<< "$out"
-      return $?
-    fi
-  done
 }
 
 test_emu() {
@@ -110,13 +77,7 @@ test_emu() {
 
   wait_emu wait_for_boot
 
-  adb shell 'PATH=$PATH:/debug_ramdisk magisk -v'
-
-  # Install the Magisk app
-  adb install -r -g out/app-${variant}.apk
-
-  # Use the app to run setup and reboot
-  run_content_cmd setup
+  test_setup $variant
 
   # Install LSPosed
   if [ $api -ge $lsposed_min_api -a $api -le $atd_max_api ]; then
@@ -130,9 +91,7 @@ test_emu() {
   fi
   wait_emu wait_for_boot
 
-  # Run app tests
-  run_content_cmd test
-  adb shell echo 'su -c id' \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'
+  test_app
 
   # Try to launch LSPosed
   if [ $api -ge $lsposed_min_api -a $api -le $atd_max_api ]; then
@@ -177,7 +136,6 @@ run_test() {
   local pkg="system-images;android-$ver;$type;$arch"
   local img_dir="$ANDROID_SDK_ROOT/system-images/android-$ver/$type/$arch"
   local ramdisk="$img_dir/ramdisk.img"
-  local features="$img_dir/advancedFeatures.ini"
 
   # Old Linux kernels will not boot with memory larger than 3GB
   local memory
@@ -195,8 +153,6 @@ run_test() {
   # Setup emulator
   "$sdk" --channel=3 $pkg
   echo no | "$avd" create avd -f -n test -k $pkg
-  restore_backup $ramdisk
-  restore_backup $features
 
   # Launch stock emulator
   print_title "* Launching $pkg"
@@ -204,14 +160,17 @@ run_test() {
   emu_pid=$!
   wait_emu wait_for_bootanim
 
+  # Update arguments for Magisk runs
+  emu_args="$emu_args -ramdisk magisk_patched.img -feature -SystemAsRoot"
+
   # Patch and test debug build
-  ./build.py avd_patch -s "$ramdisk"
+  ./build.py avd_patch -s "$ramdisk" magisk_patched.img
   kill -INT $emu_pid
   wait $emu_pid
   test_emu debug $api
 
-  # Re-patch and test release build
-  ./build.py -r avd_patch -s "$ramdisk"
+  # Patch and test release build
+  ./build.py -r avd_patch -s "$ramdisk" magisk_patched.img
   kill -INT $emu_pid
   wait $emu_pid
   test_emu release $api
@@ -219,16 +178,15 @@ run_test() {
   # Cleanup
   kill -INT $emu_pid
   wait $emu_pid
-  restore_backup $ramdisk
-  restore_backup $features
+  rm -f magisk_patched.img
 }
 
+set -xe
 trap cleanup EXIT
+. scripts/test_common.sh
 
 export -f wait_for_boot
 export -f wait_for_bootanim
-
-set -xe
 
 case $(uname -m) in
   'arm64'|'aarch64')
