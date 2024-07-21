@@ -1,6 +1,13 @@
-export PATH="$PATH:$ANDROID_SDK_ROOT/platform-tools"
+if [ -z $ANDROID_HOME ]; then
+  export ANDROID_HOME=$ANDROID_SDK_ROOT
+fi
 
-sdk="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+export PATH="$PATH:$ANDROID_HOME/platform-tools"
+
+sdk="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+emu="$ANDROID_HOME/emulator/emulator"
+avd="$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager"
+
 boot_timeout=600
 
 print_title() {
@@ -13,7 +20,7 @@ print_error() {
 
 run_content_cmd() {
   while true; do
-    local out=$(adb shell echo "'content call --uri content://com.topjohnwu.magisk.provider --method $1'" \| /system/xbin/su | tee /dev/fd/2)
+    local out=$(adb shell /system/xbin/su 0 content call --uri content://com.topjohnwu.magisk.provider --method $1 | tee /dev/fd/2)
     if ! grep -q 'Bundle\[' <<< "$out"; then
       # The call failed, wait a while and retry later
       sleep 30
@@ -38,5 +45,5 @@ test_setup() {
 test_app() {
   # Run app tests
   run_content_cmd test
-  adb shell echo 'su -c id' \| /system/xbin/su 2000 | tee /dev/fd/2 | grep -q 'uid=0'
+  adb shell /system/xbin/su 2000 su -c id | tee /dev/fd/2 | grep -q 'uid=0'
 }
