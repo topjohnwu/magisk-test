@@ -3,7 +3,7 @@
 set -xe
 . scripts/test_common.sh
 
-cvd_args='-daemon -enable_sandbox=false -memory_mb=8192 -report_anonymous_usage_stats=n'
+cvd_args="-daemon -enable_sandbox=false -memory_mb=8192 -report_anonymous_usage_stats=n -cpus=$(nproc)"
 magisk_args='-init_boot_image=magisk_patched.img'
 
 cleanup() {

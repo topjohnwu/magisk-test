@@ -4,13 +4,17 @@ on:
   workflow_dispatch:
 
 jobs:
-  cf_test:
-    name: Test on AOSP main Cuttlefish
-    runs-on: ubuntu-24.04
-    env:
-      CF_HOME: /home/runner/aosp_cf_x86_64_phone
+  avd-test:
+    name: Test API ${{ matrix.version }} (x86_64)
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      matrix:
+        version: [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34]
+        type: [""]
+        include:
+          - version: 35
+            type: "google_apis"
 
     steps:
       - name: Check out
@@ -18,10 +22,40 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Cuttlefish environment
+      - name: Enable KVM group perms
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: AVD test
+        timeout-minutes: 10
+        env:
+          AVD_TEST_VERBOSE: 1
+        run: scripts/avd_test.sh ${{ matrix.version }} ${{ matrix.type }}
+
+  cf_test:
+    name: Test ${{ matrix.branch }} (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    env:
+      CF_HOME: /home/runner/aosp_cf_phone
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - branch: "aosp-main"
+            target: "aosp_cf_x86_64_phone-trunk_staging-userdebug"
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Cuttlefish
         run: |
           scripts/cuttlefish.sh setup
-          scripts/cuttlefish.sh download
+          scripts/cuttlefish.sh download ${{ matrix.branch }} ${{ matrix.target }}
 
       - name: Run Cuttlefish test
         run: su $USER -c 'scripts/cuttlefish.sh test'
@@ -32,5 +66,5 @@ jobs:
         with:
           name: "cvd-logs"
           path: |
-            /home/runner/aosp_cf_x86_64_phone/cuttlefish/instances/cvd-1/logs
-            /home/runner/aosp_cf_x86_64_phone/cuttlefish/instances/cvd-1/cuttlefish_config.json
+            /home/runner/aosp_cf_phone/cuttlefish/instances/cvd-1/logs
+            /home/runner/aosp_cf_phone/cuttlefish/instances/cvd-1/cuttlefish_config.json
