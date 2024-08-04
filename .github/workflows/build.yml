@@ -15,6 +15,8 @@ jobs:
         include:
           - version: 35
             type: "google_apis"
+          - version: 35
+            type: "google_apis_ps16k"
 
     steps:
       - name: Check out
@@ -45,6 +47,8 @@ jobs:
         include:
           - branch: "aosp-main"
             target: "aosp_cf_x86_64_phone-trunk_staging-userdebug"
+          - branch: "aosp-main-throttled"
+            target: "aosp_cf_x86_64_phone_pgagnostic-trunk_staging-userdebug"
 
     steps:
       - name: Check out
